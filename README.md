@@ -153,7 +153,6 @@ fulfillx-monorepo/
 
 #### Marketing Website
 
-- Brand-neutral clone of Veeqo's structure and flow
 - Responsive design with Tailwind CSS
 - SEO optimized with Next.js 14 App Router
 - Framer Motion animations
@@ -322,7 +321,7 @@ Copy `.env.example` to `.env` and configure:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
 
 ## Support
 
