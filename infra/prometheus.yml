@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['host.docker.internal:4000']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'orders-service'
+    static_configs:
+      - targets: ['host.docker.internal:4001']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'shipping-service'
+    static_configs:
+      - targets: ['host.docker.internal:4002']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'inventory-service'
+    static_configs:
+      - targets: ['host.docker.internal:4003']
+    metrics_path: '/metrics'
+    scrape_interval: 5s

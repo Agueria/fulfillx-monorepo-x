@@ -1,0 +1,432 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Auth & Organizations
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships OrganizationMember[]
+  orders      Order[]
+  notes       OrderNote[]
+
+  @@map("users")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     OrganizationMember[]
+  stores      Store[]
+  warehouses  Warehouse[]
+  orders      Order[]
+  skus        SKU[]
+  suppliers   Supplier[]
+  rules       AutomationRule[]
+  credits     CreditTransaction[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id     String @id @default(cuid())
+  userId String
+  orgId  String
+  role   Role   @default(VIEWER)
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@map("organization_members")
+}
+
+enum Role {
+  ADMIN
+  OPS_MANAGER
+  PICKER
+  FINANCE
+  ANALYST
+  VIEWER
+}
+
+// Stores & Channels
+model Store {
+  id       String @id @default(cuid())
+  orgId    String
+  name     String
+  platform String // 'shopify', 'amazon', 'ebay', etc.
+  settings Json   @default("{}")
+
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@map("stores")
+}
+
+// Orders
+model Order {
+  id               String      @id @default(cuid())
+  orgId            String
+  storeId          String
+  userId           String?
+  channelOrderId   String
+  orderNumber      String
+  status           OrderStatus @default(NEW)
+  customerEmail    String
+  customerPhone    String?
+  shippingAddress  Json
+  billingAddress   Json?
+  subtotal         Decimal     @db.Decimal(10, 2)
+  shippingCost     Decimal     @db.Decimal(10, 2)
+  tax              Decimal     @db.Decimal(10, 2)
+  total            Decimal     @db.Decimal(10, 2)
+  currency         String      @default("USD")
+  tags             String[]    @default([])
+  deliveryPromise  DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  store     Store        @relation(fields: [storeId], references: [id])
+  user      User?        @relation(fields: [userId], references: [id])
+  items     OrderItem[]
+  notes     OrderNote[]
+  shipments Shipment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  skuId      String
+  sku        String
+  name       String
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+  weight     Json?
+  imageUrl   String?
+  attributes Json?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model OrderNote {
+  id        String   @id @default(cuid())
+  orderId   String
+  userId    String
+  content   String
+  mentions  String[] @default([])
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("order_notes")
+}
+
+enum OrderStatus {
+  NEW
+  READY_TO_SHIP
+  LABEL_PURCHASED
+  DISPATCHED
+  DELIVERED
+  CLOSED
+  RETURN_REQUESTED
+  RETURNED
+  CANCELLED
+}
+
+// Inventory
+model SKU {
+  id          String  @id @default(cuid())
+  orgId       String
+  sku         String
+  name        String
+  description String?
+  weight      Json?
+  dimensions  Json?
+  imageUrl    String?
+  attributes  Json?
+  isBundle    Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org           Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  levels        InventoryLevel[]
+  ledger        StockLedger[]
+  reservations  Reservation[]
+  bundleItems   BundleItem[]    @relation("BundleParent")
+  bundleParents BundleItem[]    @relation("BundleChild")
+
+  @@unique([orgId, sku])
+  @@map("skus")
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  address   Json
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org        Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  levels     InventoryLevel[]
+  ledger     StockLedger[]
+  locations  BinLocation[]
+  transfers  Transfer[]       @relation("TransferFrom")
+  transfersTo Transfer[]      @relation("TransferTo")
+
+  @@map("warehouses")
+}
+
+model InventoryLevel {
+  id          String @id @default(cuid())
+  skuId       String
+  warehouseId String
+  available   Int    @default(0)
+  reserved    Int    @default(0)
+  total       Int    @default(0)
+  updatedAt   DateTime @updatedAt
+
+  sku       SKU       @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([skuId, warehouseId])
+  @@map("inventory_levels")
+}
+
+model StockLedger {
+  id          String           @id @default(cuid())
+  skuId       String
+  warehouseId String
+  type        StockMovementType
+  quantity    Int
+  reference   String?
+  reason      String?
+  createdAt   DateTime         @default(now())
+
+  sku       SKU       @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@map("stock_ledger")
+}
+
+enum StockMovementType {
+  INBOUND
+  OUTBOUND
+  ADJUSTMENT
+  TRANSFER_IN
+  TRANSFER_OUT
+  RESERVATION
+  RELEASE
+}
+
+model BinLocation {
+  id          String @id @default(cuid())
+  warehouseId String
+  name        String
+  zone        String?
+  aisle       String?
+  shelf       String?
+  bin         String?
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, name])
+  @@map("bin_locations")
+}
+
+// Shipping
+model Shipment {
+  id              String        @id @default(cuid())
+  orderId         String
+  trackingNumber  String        @unique
+  carrier         String
+  service         String
+  fromAddress     Json
+  toAddress       Json
+  parcels         Json
+  cost            Decimal       @db.Decimal(10, 2)
+  currency        String        @default("USD")
+  status          ShipmentStatus @default(CREATED)
+  createdAt       DateTime      @default(now())
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+
+  order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  labels Label[]
+  events TrackingEvent[]
+
+  @@map("shipments")
+}
+
+model Label {
+  id             String    @id @default(cuid())
+  shipmentId     String
+  trackingNumber String
+  carrier        String
+  service        String
+  cost           Decimal   @db.Decimal(10, 2)
+  currency       String    @default("USD")
+  labelUrl       String
+  trackingUrl    String?
+  createdAt      DateTime  @default(now())
+  voidedAt       DateTime?
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@map("labels")
+}
+
+model TrackingEvent {
+  id             String   @id @default(cuid())
+  shipmentId     String
+  trackingNumber String
+  status         String
+  description    String
+  location       String?
+  timestamp      DateTime
+  carrier        String
+  createdAt      DateTime @default(now())
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@map("tracking_events")
+}
+
+enum ShipmentStatus {
+  CREATED
+  IN_TRANSIT
+  DELIVERED
+  EXCEPTION
+  RETURNED
+}
+
+// Additional models would continue here...
+// Including: Suppliers, PurchaseOrders, AutomationRules, etc.
+
+model Supplier {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  email     String?
+  phone     String?
+  address   Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("suppliers")
+}
+
+model AutomationRule {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  description String?
+  conditions  Json
+  actions     Json
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("automation_rules")
+}
+
+model CreditTransaction {
+  id          String            @id @default(cuid())
+  orgId       String
+  type        CreditType
+  amount      Decimal           @db.Decimal(10, 2)
+  description String
+  reference   String?
+  createdAt   DateTime          @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("credit_transactions")
+}
+
+enum CreditType {
+  EARNED
+  SPENT
+  BONUS
+  REFUND
+}
+
+model Reservation {
+  id          String    @id @default(cuid())
+  skuId       String
+  quantity    Int
+  reference   String
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  sku SKU @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@map("reservations")
+}
+
+model BundleItem {
+  id         String @id @default(cuid())
+  bundleId   String
+  childSkuId String
+  quantity   Int
+
+  bundle   SKU @relation("BundleParent", fields: [bundleId], references: [id], onDelete: Cascade)
+  childSku SKU @relation("BundleChild", fields: [childSkuId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, childSkuId])
+  @@map("bundle_items")
+}
+
+model Transfer {
+  id            String         @id @default(cuid())
+  fromWarehouseId String
+  toWarehouseId String
+  status        TransferStatus @default(PENDING)
+  createdAt     DateTime       @default(now())
+  completedAt   DateTime?
+
+  fromWarehouse Warehouse @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse @relation("TransferTo", fields: [toWarehouseId], references: [id])
+
+  @@map("transfers")
+}
+
+enum TransferStatus {
+  PENDING
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}

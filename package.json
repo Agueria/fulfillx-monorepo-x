@@ -1,0 +1,38 @@
+{
+  "name": "fulfillx-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Brand-neutral fulfillment platform - complete e-commerce shipping and inventory management system",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "build:packages": "turbo run build --filter='./packages/*'",
+    "test": "turbo run test",
+    "e2e": "turbo run e2e",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "db:generate": "turbo run db:generate",
+    "db:push": "turbo run db:push",
+    "db:seed": "turbo run db:seed",
+    "db:studio": "cd packages/database && pnpm db:studio",
+    "db:reset": "cd packages/database && pnpm db:reset",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:clean": "docker-compose down -v --remove-orphans",
+    "setup": "pnpm install && pnpm db:generate && pnpm db:push && pnpm db:seed",
+    "setup:dev": "bash scripts/dev.sh",
+    "setup:dev:win": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
+    "start:infra": "docker-compose up -d postgres redis minio",
+    "start:monitoring": "docker-compose up -d prometheus grafana",
+    "health": "curl -f http://localhost:4000/health || exit 1"
+  },
+  "devDependencies": {
+    "turbo": "^1.10.16"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

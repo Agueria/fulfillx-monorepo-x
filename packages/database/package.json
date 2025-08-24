@@ -1,0 +1,24 @@
+{
+  "name": "@fulfillx/database",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset --force",
+    "clean": "rm -rf node_modules/.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.1",
+    "prisma": "^5.7.1",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/bcryptjs": "^2.4.6",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.3"
+  }
+}
