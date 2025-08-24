@@ -15,7 +15,7 @@ A brand-neutral, Veeqo-like system that provides comprehensive shipping, invento
 **Linux/macOS:**
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Agueria/fulfillx-monorepo-x
 cd fulfillx-monorepo
 pnpm setup:dev
 ```
@@ -23,7 +23,7 @@ pnpm setup:dev
 **Windows:**
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/Agueria/fulfillx-monorepo-x
 cd fulfillx-monorepo
 pnpm setup:dev:win
 ```
@@ -33,7 +33,7 @@ pnpm setup:dev:win
 1. **Clone and install dependencies:**
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Agueria/fulfillx-monorepo-x
 cd fulfillx-monorepo
 pnpm install
 ```
